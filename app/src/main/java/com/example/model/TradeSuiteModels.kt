@@ -231,3 +231,91 @@ data class ChatMessage(
   val isError: Boolean = false,
   val suggestedPrompts: List<String> = emptyList()
 )
+
+enum class OptionsStrategyType(val label: String) {
+  CREDIT_SPREAD_0DTE("0DTE Credit Spread"),
+  DEBIT_SPREAD_0DTE("0DTE Debit Spread"),
+  IRON_CONDOR_0DTE("0DTE Iron Condor"),
+  STRADDLE_DECAY_0DTE("0DTE Straddle Decay"),
+  CALENDAR_DIAGONAL_0DTE("0DTE Vol Calendar / Diagonal"),
+  CUSTOM_OPTIONS("Custom Options")
+}
+
+enum class StrategyAutomationStatus(val label: String) {
+  STANDBY("Standby"),
+  MONITORING_STREAM("Monitoring DataStream"),
+  ENTRY_TRIGGERED("Entry Triggered"),
+  OPEN_POSITION("Open Position (OpenD)"),
+  EXIT_TRIGGERED("Exit Triggered"),
+  CLOSED_COMPLETE("Closed & Reconciled")
+}
+
+data class StrictStrategyParams(
+  val underlying: String = "SPX",
+  val expiry: String = "0DTE",
+  val strategyType: OptionsStrategyType = OptionsStrategyType.IRON_CONDOR_0DTE,
+  val structureDescription: String = "Iron Condor: Sell 12-delta wings (12P/12C) 50-pt wide",
+  val deltaTarget: Float = 0.12f,
+  val wingWidth: Float = 50f,
+  val minCreditDebit: Double = 1.35,
+  val entryTimeWindow: String = "10:00 AM - 11:30 AM EST",
+  val profitTargetPct: Float = 50.0f,
+  val stopLossMultiplier: Float = 2.0f,
+  val hardCutoffTime: String = "3:45 PM EST",
+  val maxAllocationPct: Float = 5.0f,
+  val maxSlippageCents: Int = 15,
+  val parameterChecklist: List<String> = listOf(
+    "Delta verification (±0.02 tolerance)",
+    "Credit threshold >= $1.35",
+    "Spread width validation (50 pts)",
+    "Hard time stop 3:45 PM cutoff",
+    "OpenD pre-flight risk veto clearance"
+  )
+)
+
+data class StrategyCorrelationItem(
+  val targetStrategyName: String,
+  val family: String,
+  val correlationCoefficient: Float, // -1.0 to +1.0
+  val diversificationBenefit: String,
+  val isNonCorrelated: Boolean
+)
+
+data class CorrelationMatrixData(
+  val strategyLabels: List<String>,
+  val matrix: List<List<Float>>, // Raw empirical Pearson correlation
+  val shrunkMatrix: List<List<Float>>, // Ledoit-Wolf shrinkage
+  val shrinkageIntensity: Float = 0.22f // delta shrinkage intensity
+)
+
+data class OpenDExecutionLog(
+  val id: String = java.util.UUID.randomUUID().toString(),
+  val timestamp: String,
+  val strategyName: String,
+  val orderSide: String, // BUY, SELL
+  val contracts: Int,
+  val code: String,
+  val limitPrice: Double,
+  val fillPrice: Double,
+  val status: String,
+  val latencyMs: Long,
+  val slippageCents: Double
+)
+
+data class NaturalLanguageStrategy(
+  val id: String = java.util.UUID.randomUUID().toString(),
+  val title: String,
+  val dictatedText: String,
+  val params: StrictStrategyParams,
+  val correlations: List<StrategyCorrelationItem>,
+  val overallDiversificationScore: Float, // 0 to 100
+  val isAutomated: Boolean = false,
+  val isAutonomousArmed: Boolean = true,
+  val status: StrategyAutomationStatus = StrategyAutomationStatus.STANDBY,
+  val lastStreamTick: String = "Waiting for moomoo DataStream ticks...",
+  val currentPnL: Double = 0.0,
+  val pnlPct: Float = 0.0f,
+  val moomooPayloadPreview: String = "",
+  val executionLogs: List<OpenDExecutionLog> = emptyList()
+)
+

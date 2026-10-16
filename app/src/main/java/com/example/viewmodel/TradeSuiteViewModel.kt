@@ -14,12 +14,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 enum class MainTab(val title: String) {
+  STUDIO("0DTE Studio"),
   KPIS("KPIs"),
   AGENTS("Agent Desk"),
   RISK("Risk & Halt"),
   BLOTTER("Paper Blotter"),
-  MACRO("Macro & Feeds"),
   COPILOT("AI Copilot"),
+  MACRO("Macro & Feeds"),
   ENGINES("36 Engines"),
   CONNECTION("Connect")
 }
@@ -41,7 +42,7 @@ class TradeSuiteViewModel(application: Application) : AndroidViewModel(applicati
     ConnectionConfig()
   )
 
-  private val _activeTab = MutableStateFlow(MainTab.KPIS)
+  private val _activeTab = MutableStateFlow(MainTab.STUDIO)
   val activeTab: StateFlow<MainTab> = _activeTab.asStateFlow()
 
   val engines: StateFlow<List<EngineInfo>> = repository.engines
@@ -57,6 +58,10 @@ class TradeSuiteViewModel(application: Application) : AndroidViewModel(applicati
   val marketTickers: StateFlow<List<MarketTicker>> = repository.marketTickers
   val strategies: StateFlow<List<StrategyPerformance>> = repository.strategies
   val chatMessages: StateFlow<List<ChatMessage>> = repository.chatMessages
+  val nlStrategies: StateFlow<List<NaturalLanguageStrategy>> = repository.nlStrategies
+
+  private val _isParsingStrategy = MutableStateFlow(false)
+  val isParsingStrategy: StateFlow<Boolean> = _isParsingStrategy.asStateFlow()
 
   private val _deskRunInProgress = MutableStateFlow(false)
   val deskRunInProgress: StateFlow<Boolean> = _deskRunInProgress.asStateFlow()
@@ -207,6 +212,36 @@ class TradeSuiteViewModel(application: Application) : AndroidViewModel(applicati
       _isTestingConnection.value = false
       _connectionResult.value = result
     }
+  }
+
+  fun parseAndAddStrategy(dictatedText: String) {
+    if (dictatedText.isBlank()) return
+    viewModelScope.launch {
+      _isParsingStrategy.value = true
+      _notification.value = UiNotification("Parsing 0DTE natural language strategy & computing cross-strategy correlations...")
+      kotlinx.coroutines.delay(400)
+      val strategy = repository.parseNaturalLanguageStrategy(dictatedText)
+      repository.addCustomStrategy(strategy)
+      _isParsingStrategy.value = false
+      _notification.value = UiNotification("Generated: ${strategy.title} • Diversification: ${strategy.overallDiversificationScore}%")
+    }
+  }
+
+  fun toggleNlStrategyAutomation(strategyId: String, enable: Boolean) {
+    repository.toggleNlStrategyAutomation(strategyId, enable)
+    _notification.value = UiNotification(if (enable) "moomoo DataStream subscription active • Automated 0DTE execution ON" else "Strategy automation stopped")
+  }
+
+  fun simulateStreamExecution(strategyId: String) {
+    repository.simulateStreamExecution(strategyId)
+    val updated = repository.nlStrategies.value.find { it.id == strategyId }
+    if (updated != null) {
+      _notification.value = UiNotification("${updated.title}: ${updated.lastStreamTick}")
+    }
+  }
+
+  fun getCorrelationMatrixForStrategy(strategy: NaturalLanguageStrategy): CorrelationMatrixData {
+    return repository.computeCorrelationMatrix(strategy)
   }
 
   fun clearNotification() {

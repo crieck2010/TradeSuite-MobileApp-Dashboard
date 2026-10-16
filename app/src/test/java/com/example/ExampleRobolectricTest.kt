@@ -82,5 +82,42 @@ class ExampleRobolectricTest {
     assertEquals(154200.50, repo.performanceStats.value.totalEquity, 0.01)
     assertEquals(2.24f, repo.performanceStats.value.sharpeRatio, 0.01f)
   }
+
+  @Test
+  fun `natural language 0dte strategy parsing into strict algorithm parameters`() {
+    val repo = TradeSuiteRepository()
+    val input = "0DTE SPX Iron Condor: Sell 12-delta put and call wings with 50-pt wide wings at 10:00 AM EST, profit target 50%, stop loss 2x credit, hard close at 3:45 PM EST"
+    val parsed = repo.parseNaturalLanguageStrategy(input)
+
+    assertEquals("SPX", parsed.params.underlying)
+    assertEquals(com.example.model.OptionsStrategyType.IRON_CONDOR_0DTE, parsed.params.strategyType)
+    assertEquals(0.12f, parsed.params.deltaTarget, 0.001f)
+    assertEquals(50f, parsed.params.wingWidth, 0.001f)
+    assertEquals(50f, parsed.params.profitTargetPct, 0.001f)
+    assertEquals(2.0f, parsed.params.stopLossMultiplier, 0.001f)
+    assertTrue(parsed.correlations.isNotEmpty())
+    assertTrue(parsed.overallDiversificationScore > 80f)
+    assertTrue(parsed.moomooPayloadPreview.contains("OpenSecTradeContext"))
+  }
+
+  @Test
+  fun `openD automation toggle and stream execution lifecycle`() {
+    val repo = TradeSuiteRepository()
+    val initialList = repo.nlStrategies.value
+    assertTrue(initialList.isNotEmpty())
+    val stratId = initialList.first().id
+
+    // Test toggle automation
+    repo.toggleNlStrategyAutomation(stratId, true)
+    var strat = repo.nlStrategies.value.find { it.id == stratId }
+    assertNotNull(strat)
+    assertTrue(strat!!.isAutomated)
+    assertEquals(com.example.model.StrategyAutomationStatus.MONITORING_STREAM, strat.status)
+
+    // Test stream event transition
+    repo.simulateStreamExecution(stratId)
+    strat = repo.nlStrategies.value.find { it.id == stratId }
+    assertEquals(com.example.model.StrategyAutomationStatus.ENTRY_TRIGGERED, strat!!.status)
+  }
 }
 

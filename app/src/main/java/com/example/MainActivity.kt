@@ -60,6 +60,8 @@ class MainActivity : ComponentActivity() {
         val strategies by viewModel.strategies.collectAsStateWithLifecycle()
         val chatMessages by viewModel.chatMessages.collectAsStateWithLifecycle()
         val isChatSending by viewModel.isChatSending.collectAsStateWithLifecycle()
+        val nlStrategies by viewModel.nlStrategies.collectAsStateWithLifecycle()
+        val isParsingStrategy by viewModel.isParsingStrategy.collectAsStateWithLifecycle()
         val engines by viewModel.engines.collectAsStateWithLifecycle()
         val connectionConfig by viewModel.connectionConfig.collectAsStateWithLifecycle()
         val isTestingConnection by viewModel.isTestingConnection.collectAsStateWithLifecycle()
@@ -114,11 +116,11 @@ class MainActivity : ComponentActivity() {
                 .testTag("main_bottom_nav")
             ) {
               val tabs = listOf(
+                Pair(MainTab.STUDIO, Icons.Default.AutoAwesome),
                 Pair(MainTab.KPIS, Icons.Default.Insights),
                 Pair(MainTab.AGENTS, Icons.Default.Psychology),
                 Pair(MainTab.RISK, Icons.Default.Shield),
                 Pair(MainTab.BLOTTER, Icons.AutoMirrored.Filled.ReceiptLong),
-                Pair(MainTab.MACRO, Icons.AutoMirrored.Filled.ShowChart),
                 Pair(MainTab.COPILOT, Icons.Default.SmartToy)
               )
 
@@ -162,6 +164,14 @@ class MainActivity : ComponentActivity() {
           ) {
             Crossfade(targetState = activeTab, label = "tab_fade") { tab ->
               when (tab) {
+                MainTab.STUDIO -> StrategyStudioScreen(
+                  strategies = nlStrategies,
+                  isParsing = isParsingStrategy,
+                  onParseStrategy = { text -> viewModel.parseAndAddStrategy(text) },
+                  onToggleAutomation = { id, enable -> viewModel.toggleNlStrategyAutomation(id, enable) },
+                  onSimulateStreamEvent = { id -> viewModel.simulateStreamExecution(id) },
+                  getCorrelationMatrix = { strat -> viewModel.getCorrelationMatrixForStrategy(strat) }
+                )
                 MainTab.KPIS -> KpiDashboardScreen(
                   performance = performanceStats,
                   strategies = strategies,
